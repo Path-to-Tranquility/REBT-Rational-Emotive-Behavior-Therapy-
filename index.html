@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>REBT thought record</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f3f5f2; color: #203c3b; font: 16px/1.6 system-ui, sans-serif; }
+    main { max-width: 820px; margin: 48px auto; padding: 0 24px; }
+    .eyebrow { color: #51776f; font-size: 12px; font-weight: 700; letter-spacing: 2px; }
+    h1 { font-size: clamp(30px, 6vw, 44px); line-height: 1.15; margin: 12px 0; letter-spacing: -1.5px; }
+    .intro { color: #5b6c68; margin-bottom: 28px; }
+    form { background: white; padding: 32px; border: 1px solid #dde5df; border-radius: 20px; box-shadow: 0 12px 40px #243f3408; }
+    .field { margin-bottom: 26px; }
+    fieldset { border: 0; padding: 0; margin: 0 0 26px; min-width: 0; }
+    legend { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .example { background: #f3f7f4; border-left: 3px solid #75a591; padding: 10px 14px; color: #456159; font-size: 14px; margin: 0 0 12px; }
+    label { display: block; font-weight: 650; margin-bottom: 5px; }
+    .hint { display: block; color: #61706c; font-size: 14px; margin: 0 0 10px; }
+    textarea, input { font: inherit; color: #203c3b; padding: 12px; width: 100%; background: #fcfdfb; border: 1px solid #bdcdc4; border-radius: 8px; }
+    textarea { min-height: 112px; resize: vertical; }
+    :focus-visible { outline: 3px solid #75b5a0; outline-offset: 3px; }
+    .ratings { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    button { border: 0; border-radius: 9px; padding: 14px 24px; background: #245d50; color: white; font: inherit; font-weight: 600; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: wait; }
+    #status { margin: 16px 0 0; font-weight: 600; }
+    #status.error { color: #a52f2f; }
+    footer { margin: 20px 0; color: #61706c; font-size: 13px; }
+    @media(max-width: 520px) { main { margin: 28px auto; padding: 0 16px; } form { padding: 20px; } .ratings { grid-template-columns: 1fr; gap: 0; } button { width: 100%; } }
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">REBT / THOUGHT RECORD</div>
+  <h1>A little space to rethink.</h1>
+  <p class="intro">Reflect on a situation, examine your beliefs, and choose a next step.</p>
+  <form id="rebt">
+    <p class="hint">Choose one specific situation and work through A–E in order. A few sentences in your own words are enough. The examples follow one situation to show what belongs in each section; your answers may be different. All fields are required except your next action.</p>
+    <div class="field"><label for="entry_date">Entry date</label><input id="entry_date" name="entry_date" type="date" required></div>
+    <div class="field"><label for="activating_event">A — Activating event: what happened?</label><p id="hint-a" class="hint">Describe one moment: where you were, who was involved, and what was said or done. Write what a camera could record. Put your interpretation of what it means in B.</p><p class="example">Example: “I ordered a pair of shoes online. The delivery date was yesterday, but the parcel has not arrived. The tracking page now says it is delayed.”</p><textarea id="activating_event" name="activating_event" aria-describedby="hint-a" required></textarea></div>
+    <div class="field"><label for="beliefs">B — Beliefs: what did you tell yourself?</label><p id="hint-b" class="hint">Write the thoughts you had about the event, even if they seem harsh or unreasonable now. What did it mean about you, other people, or the future? Look for demands such as “I must,” “they should,” “I cannot stand it,” or judgments about your whole worth.</p><p class="example">Example: “My order must arrive exactly when promised. This delay is completely unbearable. The seller does not care about me, and I cannot stand waiting.”</p><textarea id="beliefs" name="beliefs" aria-describedby="hint-b" required></textarea></div>
+    <fieldset><legend>C — Consequences: how did you respond?</legend><p class="hint">Describe your response to the event and the beliefs in B. Separate what you felt from what you did.</p>
+      <div class="field"><label for="negative_emotions">Negative emotions</label><p id="hint-c-emotions" class="hint">Name the unpleasant emotions you actually felt, such as anxiety, shame, anger, guilt, or sadness. “I felt like a failure” is a belief; “I felt ashamed” names an emotion. You can also note physical sensations.</p><p class="example">Example: “I felt furious and anxious. My jaw tightened and my heart beat faster.”</p><textarea id="negative_emotions" name="negative_emotions" aria-describedby="hint-c-emotions" required></textarea></div>
+      <div class="field"><label for="behaviour">Behaviour</label><p id="hint-c-behaviour" class="hint">Describe what you actually did next, or avoided doing. Include actions such as withdrawing, arguing, checking repeatedly, or putting something off. If you only had an urge to act, say that.</p><p class="example">Example: “I refreshed the tracking page every few minutes, sent an angry message to the seller, and put off my other plans while waiting.”</p><textarea id="behaviour" name="behaviour" aria-describedby="hint-c-behaviour" required></textarea></div>
+    </fieldset>
+    <div class="field"><label for="disputation">D — Dispute the belief: how well does it hold up?</label><p id="hint-d" class="hint">Choose one strong belief from B. Ask: What evidence supports it, and what evidence challenges it? Does wanting something mean it must happen? Does one mistake define my whole worth? Does holding this belief help me respond usefully? Write your answers, not just the questions.</p><p class="example">Example: “The delivery is late, but that alone does not prove the seller does not care about me. Wanting it on time does not mean delays cannot happen. Waiting is inconvenient, but I have handled delays before. Repeatedly checking the tracking page does not make it arrive sooner.”</p><textarea id="disputation" name="disputation" aria-describedby="hint-d" required></textarea></div>
+    <fieldset><legend>E — Effective new belief and response</legend><p class="hint">Write a more flexible belief, then describe the emotion and behaviour you want to work toward. These can be intentions even if your feelings have not changed yet.</p>
+      <div class="field"><label for="effective_belief">New effective belief</label><p id="hint-e" class="hint">Replace the rigid demand in B with a preference. Acknowledge the difficulty, what you can tolerate, and your ability to choose a response. Make it believable to you.</p><p class="example">Example: “I strongly prefer deliveries to arrive on time. This delay is frustrating, but I can tolerate the wait and ask for a clear update. I can take practical action and still get on with my day.”</p><textarea id="effective_belief" name="effective_belief" aria-describedby="hint-e" required></textarea></div>
+      <div class="field"><label for="healthy_negative_emotion">New healthy negative emotion</label><p id="hint-e-emotion" class="hint">Name a realistic unpleasant emotion that would let you acknowledge the problem and still respond helpfully—for example, concern, disappointment, sadness, or regret. You do not need to force yourself to feel happy. Describe the emotion you would like to work toward.</p><p class="example">Example: “Disappointment about the late delivery and concern about when it will arrive, while still feeling able to handle the situation.”</p><textarea id="healthy_negative_emotion" name="healthy_negative_emotion" aria-describedby="hint-e-emotion" required></textarea></div>
+      <div class="field"><label for="constructive_behaviour">New constructive behaviour</label><p id="hint-e-behaviour" class="hint">Describe a specific, helpful action you can choose in this situation. Focus on something within your control. Connect it to the behaviour in C that you want to change.</p><p class="example">Example: “I will send a polite message asking for an updated delivery date, choose one time to check tracking again, and continue with my other plans.”</p><textarea id="constructive_behaviour" name="constructive_behaviour" aria-describedby="hint-e-behaviour" required></textarea></div>
+    </fieldset>
+    <div class="field"><label for="next_action">Practice plan (optional)</label><p id="hint-next" class="hint">Make the constructive behaviour easier to start: when and where will you take the first step?</p><p class="example">Example: “At 3 p.m. today, I will spend five minutes contacting customer support with my order number. I will check tracking again tomorrow morning.”</p><textarea id="next_action" name="next_action" aria-describedby="hint-next"></textarea></div>
+    <p class="hint">Rate your overall emotional distress about this situation before this reflection and now: 0 = none, 10 = strongest. Record how you actually feel, even if the rating has stayed the same or increased.</p>
+    <div class="ratings">
+      <div class="field"><label for="intensity_before">Before reflection</label><input type="number" min="0" max="10" step="1" id="intensity_before" name="intensity_before" required></div>
+      <div class="field"><label for="intensity_after">After reflection</label><input type="number" min="0" max="10" step="1" id="intensity_after" name="intensity_after" required></div>
+    </div>
+    <button type="submit">Save entry to CSV</button>
+    <p id="status" role="status" aria-live="polite"></p>
+  </form>
+  <footer>Stored on this computer in <strong>data/rebt_entries.csv</strong>. Each submission adds a new row.</footer>
+</main>
+<script>
+  const form = document.querySelector('form');
+  const status = document.querySelector('#status');
+  const button = document.querySelector('button');
+  function setDate() {
+    const now = new Date();
+    document.querySelector('#entry_date').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  }
+  setDate();
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    button.disabled = true;
+    status.className = '';
+    status.textContent = 'Saving…';
+    try {
+      const response = await fetch('/entries', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(Object.fromEntries(new FormData(form)))});
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message);
+      form.reset();
+      setDate();
+      status.textContent = result.message + ' You can add another entry.';
+    } catch (error) {
+      status.className = 'error';
+      status.textContent = error instanceof TypeError ? 'Unable to confirm the save. Check that python app.py is running and check the CSV before retrying. Your answers are still here.' : error.message;
+    } finally { button.disabled = false; }
+  });
+</script>
+</body>
+</html>
