@@ -9,9 +9,9 @@ No extra packages are needed. The manual form works without internet access.
 Run `python app.py` and open **http://127.0.0.1:8765/voice**.
 The separate `voice.html` page keeps the same fields and CSV save behavior.
 Select **Start guided voice form** and allow microphone access. The app reads
-each question aloud, then listens to your English answer. Pause for three seconds
-or select **Done answering** to finish. The app reads your answer back and asks
-you to say **save** (keep it in the form) or **redo** (answer again).
+a short, conversational question aloud, then listens to your English answer. Pause for about 1.5 seconds
+or select **Done answering** to finish. The app shows your answer and asks
+you to say **yes** (keep it in the form) or **redo** (answer again).
 After the last question, it reads the full record and asks for final permission:
 say **save entry** to write to CSV, or **redo** to review the questions again.
 Nothing is written to CSV until this final confirmation. Buttons are also available.
@@ -21,7 +21,11 @@ Use **Stop voice** to return to typing; it discards the current unconfirmed answ
 and preserves confirmed answers. **Retry voice** repeats a prompt after a speech
 error. For distress ratings, say a number from zero to ten; say **skip** for the
 optional practice plan. Today's date is filled automatically; edit it before starting.
-Narration finishes before the microphone starts listening.
+You can interrupt the answer confirmation with yes, correct, or yup to keep it,
+or no, na, not at all, or redo to answer again. Unclear replies keep listening.
+Initial questions and the final CSV review finish speaking before listening.
+Headphones help prevent speaker audio from reaching the microphone; simultaneous
+speech and listening depend on browser and device support.
 
 Speech recognition requires a supported browser (try Chrome) and may need
 internet access. The browser may send audio to its speech provider; this app

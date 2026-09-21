@@ -13,12 +13,27 @@ const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const supported = Boolean(Recognition && window.speechSynthesis && window.SpeechSynthesisUtterance);
 const fields = Array.from(form.querySelectorAll('textarea, input[type=number]'));
 const numbers = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+const answerPauseMs = 1500;
+const questions = {
+  activating_event: 'What happened? Tell me about one specific situation.',
+  beliefs: 'What were you telling yourself about it?',
+  negative_emotions: 'How did that make you feel?',
+  behaviour: 'What did you do next, or avoid doing?',
+  disputation: 'Let\'s look at that belief. What evidence supports it, and what challenges it?',
+  effective_belief: 'What would be a more flexible, realistic way to think about this?',
+  healthy_negative_emotion: 'What feeling would help you handle this? Maybe concern or disappointment?',
+  constructive_behaviour: 'What helpful action could you take now?',
+  next_action: 'When and where will you take that first step? You can say skip.',
+  intensity_before: 'From zero to ten, how strong was your distress before we started?',
+  intensity_after: 'And from zero to ten, how strong is it now?'
+};
 let index = 0;
 let guided = false;
 let phase = 'idle';
 let recognition = null;
 let generation = 0;
 let silenceTimer;
+let restartTimer;
 let utterance;
 let original = null;
 let saving = false;
@@ -30,6 +45,16 @@ function setDate() {
 }
 function label(field) { return document.querySelector(`label[for="${field.id}"]`).textContent; }
 function normalize(text) { return text.toLowerCase().trim().replace(/[.!?,]+$/g, '').trim(); }
+function confirmation(text) {
+  const words = text.toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  // Match complete replies, not a positive word inside "yes, but that's wrong".
+  const reply = words.replace(/^(?:uh|um|well|actually|sorry)\s+/, '').replace(/\s+(?:please|thanks|thank you)$/, '');
+  if (/\b(?:no|nope|nah|na|noo|nooo|redo|wrong|incorrect)\b/.test(reply) ||
+      /\b(?:not at all|not really|not right|not correct|not quite|not true|isnt right|isnt correct|thats not|that is not|try again|do it again|start over|dont save|do not save)\b/.test(reply)) return 'redo';
+  if (/^(?:(?:yes|yeah|yep|yup|ya|correct|right|okay|ok|sure|absolutely|exactly|perfect|save|keep)(?:\s+|$))+$/.test(reply) ||
+      /^(?:(?:yes|yeah|yep|yup) )?(?:thats correct|that is correct|thats right|that is right|thats it|you got it|sounds good|looks good|go ahead|move on|next question|save answer|keep answer)$/.test(reply)) return 'accept';
+  return null;
+}
 function controls() {
   const busy = phase !== 'idle';
   startButton.disabled = !supported || busy;
@@ -48,6 +73,7 @@ function controls() {
 function cancelAudio() {
   generation++;
   clearTimeout(silenceTimer);
+  clearTimeout(restartTimer);
   const previous = recognition;
   recognition = null;
   if (previous) previous.abort();
@@ -68,7 +94,7 @@ function narrate(text, next) {
     if (!chunks.length) { utterance = null; if (next) next(); return; }
     utterance = new SpeechSynthesisUtterance(chunks.shift());
     utterance.lang = 'en-US';
-    utterance.rate = 0.95;
+    utterance.rate = 1.1;
     utterance.onend = speakNext;
     utterance.onerror = () => {
       if (token !== generation) return;
@@ -79,36 +105,48 @@ function narrate(text, next) {
   }
   speakNext();
 }
-function listen(mode) {
-  cancelAudio();
+function listen(mode, preserveAudio = false) {
+  if (!supported) return;
+  if (!preserveAudio) cancelAudio();
   const token = generation;
   const session = new Recognition();
   recognition = session;
   session.lang = 'en-US';
-  session.continuous = mode === 'answer';
+  session.continuous = true;
   session.interimResults = true;
   let transcript = '';
   let error = '';
   const finalResults = new Map();
   controls();
   voiceStatus.textContent = mode === 'answer'
-    ? 'Listening for your answer. Pause for 3 seconds when finished, or select Done answering.'
-    : (phase === 'final' ? 'Listening: say “save entry” or “redo”.' : 'Listening: say “save” to keep this answer, or “redo”.');
+    ? 'Listening. Pause briefly when finished, or select Done answering.'
+    : (phase === 'final' ? 'Listening: say “save entry” or “redo”.' : 'Listening — you can interrupt. Say yes, correct, or yup to keep it; no or redo to try again.');
   session.onresult = event => {
-    if (token !== generation) return;
+    if (token !== generation || recognition !== session) return;
     clearTimeout(silenceTimer);
     let interim = '';
     for (let i = event.resultIndex; i < event.results.length; i++) {
-      if (event.results[i].isFinal) finalResults.set(i, event.results[i][0].transcript.trim());
+      if (event.results[i].isFinal) {
+        const text = event.results[i][0].transcript.trim();
+        if (mode === 'decision') {
+          // Act on a finalized phrase immediately, without waiting for onend.
+          // Interim "yes" can still become "yes, that's wrong".
+          if (decide(text)) return;
+          continue;
+        }
+        finalResults.set(i, text);
+      }
       else interim += event.results[i][0].transcript + ' ';
     }
     transcript = Array.from(finalResults.values()).join(' ').trim();
-    preview.textContent = `Hearing: ${transcript} ${interim}`;
+    if (mode === 'answer') preview.textContent = `Hearing: ${transcript} ${interim}`;
     if (mode === 'answer' && transcript && !interim.trim()) {
-      silenceTimer = setTimeout(() => { if (token === generation) session.stop(); }, 3000);
+      silenceTimer = setTimeout(() => { if (token === generation) session.stop(); }, answerPauseMs);
     }
   };
   session.onerror = event => {
+    if (token !== generation || recognition !== session) return;
+    if (mode === 'decision' && event.error === 'no-speech') return;
     const messages = {
       'not-allowed': 'Microphone permission was denied. Allow access in browser settings and retry.',
       'service-not-allowed': 'The speech service is blocked. Try a supported browser or use the buttons.',
@@ -119,12 +157,18 @@ function listen(mode) {
     error = messages[event.error] || 'Listening was interrupted. Select Retry voice, or use the buttons.';
   };
   session.onend = () => {
-    if (token !== generation) return;
+    if (token !== generation || recognition !== session) return;
     clearTimeout(silenceTimer);
     recognition = null;
-    preview.textContent = '';
+    if (mode === 'answer') preview.textContent = '';
     controls();
     if (error) { voiceStatus.textContent = error; return; }
+    if (mode === 'decision') {
+      restartTimer = setTimeout(() => {
+        if (token === generation && ['review', 'final'].includes(phase)) listen('decision', true);
+      }, 250);
+      return;
+    }
     if (!transcript) { voiceStatus.textContent = 'No answer heard. Select Retry voice, or use the buttons.'; return; }
     if (mode === 'answer') reviewAnswer(transcript);
     else decide(transcript);
@@ -139,11 +183,7 @@ function askQuestion() {
   const field = fields[index];
   phase = 'answer';
   field.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  const hint = document.getElementById(field.getAttribute('aria-describedby'));
-  const instructions = field.type === 'number'
-    ? 'Rate your emotional distress from zero, none, to ten, strongest. Say one whole number.'
-    : (hint ? hint.textContent : '');
-  narrate(`${label(field)}. ${instructions} ${field.required ? '' : 'Say skip to leave this optional answer blank.'} Please tell me your answer after I finish speaking. Pause for three seconds when you are done.`, () => listen('answer'));
+  narrate(questions[field.id] || label(field), () => listen('answer'));
 }
 function reviewAnswer(text) {
   const field = fields[index];
@@ -163,7 +203,10 @@ function reviewAnswer(text) {
   readAnswer();
 }
 function readAnswer() {
-  narrate(`For ${label(fields[index])}, your answer is: ${fields[index].value || 'left blank'}. Do you want to save this answer in the form or redo it? Say save or redo. The CSV will be saved only after all questions and your final permission.`, () => listen('decision'));
+  // Keep the answer visible; don't speak command words into the open microphone.
+  narrate('Does that match what you said?');
+  listen('decision', true);
+  preview.textContent = `Your answer: ${fields[index].value || 'Skipped'}`;
 }
 function accept() {
   if (!['review', 'final'].includes(phase)) return;
@@ -187,15 +230,15 @@ function redo() {
   askQuestion();
 }
 function decide(text) {
+  if (!['review', 'final'].includes(phase)) return false;
   const command = normalize(text);
-  const accepted = phase === 'final' ? ['save entry', 'save', 'yes', 'yes save', 'yes save entry'] : ['save', 'keep', 'yes', 'save answer', 'keep answer'];
-  if (accepted.includes(command)) accept();
-  else if (['redo', 'no', 'redo answer'].includes(command)) redo();
-  else {
-    // Ambiguous speech is never treated as permission.
-    voiceStatus.textContent = `Heard “${text}”. Please select Retry voice and say ${phase === 'final' ? 'save entry' : 'save'} or redo, or use the buttons.`;
-    controls();
-  }
+  const action = phase === 'final'
+    ? (['save entry', 'save', 'yes', 'yes save', 'yes save entry'].includes(command) ? 'accept' : (confirmation(text) === 'redo' ? 'redo' : null))
+    : confirmation(text);
+  if (action === 'accept') { accept(); return true; }
+  if (action === 'redo') { redo(); return true; }
+  voiceStatus.textContent = `Heard “${text}”. I'm still listening. Say ${phase === 'final' ? 'save entry' : 'yes'} to keep it, or redo.`;
+  return false;
 }
 function finalReview() {
   cancelAudio();
