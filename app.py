@@ -99,12 +99,14 @@ def save_entry(values, path=CSV_PATH):
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path != "/":
+        pages = {"/": "index.html", "/voice": "voice.html", "/voice.html": "voice.html", "/voice.js": "voice.js"}
+        if self.path not in pages:
             self.send_error(404)
             return
-        content = Path(__file__).with_name("index.html").read_bytes()
+        content = Path(__file__).with_name(pages[self.path]).read_bytes()
         self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
+        content_type = "application/javascript" if self.path == "/voice.js" else "text/html"
+        self.send_header("Content-Type", f"{content_type}; charset=utf-8")
         self.send_header("Content-Length", str(len(content)))
         self.end_headers()
         self.wfile.write(content)

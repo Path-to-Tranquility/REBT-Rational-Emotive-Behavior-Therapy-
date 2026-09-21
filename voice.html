@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>REBT thought record</title>
+  <title>REBT voice thought record</title>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; background: #f3f5f2; color: #203c3b; font: 16px/1.6 system-ui, sans-serif; }
@@ -28,13 +28,36 @@
     #status.error { color: #a52f2f; }
     footer { margin: 20px 0; color: #61706c; font-size: 13px; }
     @media(max-width: 520px) { main { margin: 28px auto; padding: 0 16px; } form { padding: 20px; } .ratings { grid-template-columns: 1fr; gap: 0; } button { width: 100%; } }
+    .voice-panel { background: #e4efe8; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; }
+    .voice-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+    .voice-actions button { padding: 10px 14px; }
+    .voice-panel p { margin: 6px 0; }
+    .speak { padding: 8px 14px; margin-top: 8px; font-size: 14px; }
+    .speak[aria-pressed="true"] { background: #963f34; }
+    #voice-preview { font-style: italic; color: #456159; }
+    [data-listening] { outline: 3px solid #75b5a0; }
   </style>
 </head>
 <body>
 <main>
   <div class="eyebrow">REBT / THOUGHT RECORD</div>
-  <h1>A little space to rethink.</h1>
-  <p class="intro">Reflect on a situation, examine your beliefs, and choose a next step. <a href="/voice">Fill the form by voice</a>.</p>
+  <h1>Talk through your thoughts.</h1>
+  <p class="intro">Fill in your REBT record by speaking, then review and save your answers. <a href="/">Use the manual form</a>.</p>
+  <section class="voice-panel" aria-label="Voice instructions">
+    <p>Select <strong>Start guided voice form</strong>. Each question is read aloud, then the microphone listens to your English answer. Pause for three seconds to finish, or select <strong>Done answering</strong>. Your answer is read back: say <strong>save</strong> to keep it in the form, or <strong>redo</strong> to answer again. At the end, the full record is read back and you are asked for permission to save to CSV.</p>
+    <p class="hint">Wait until narration ends before speaking. Say ?skip? for the optional practice plan. You can use the buttons to confirm or redo. Stop voice to edit by typing; an unconfirmed answer is discarded.</p>
+    <div class="voice-actions">
+      <button type="button" id="start-voice">Start guided voice form</button>
+      <button type="button" id="done-voice" disabled>Done answering</button>
+      <button type="button" id="stop-voice" disabled>Stop voice</button>
+      <button type="button" id="keep-answer" hidden>Keep answer</button>
+      <button type="button" id="redo-answer" hidden>Redo answer</button>
+      <button type="button" id="retry-voice" hidden>Retry voice</button>
+    </div>
+    <p class="hint">Speech recognition depends on your browser and may require internet access. Your browser may send audio to its speech service for processing. This app saves only the reviewed text to your local CSV after your final save confirmation.</p>
+    <p id="voice-status" role="status" aria-live="polite">Checking voice support...</p>
+    <p id="voice-preview" aria-live="off"></p>
+  </section>
   <form id="rebt">
     <p class="hint">Choose one specific situation and work through A–E in order. A few sentences in your own words are enough. The examples follow one situation to show what belongs in each section; your answers may be different. All fields are required except your next action.</p>
     <div class="field"><label for="entry_date">Entry date</label><input id="entry_date" name="entry_date" type="date" required></div>
@@ -61,32 +84,6 @@
   </form>
   <footer>Stored on this computer in <strong>data/rebt_entries.csv</strong>. Each submission adds a new row.</footer>
 </main>
-<script>
-  const form = document.querySelector('form');
-  const status = document.querySelector('#status');
-  const button = document.querySelector('button');
-  function setDate() {
-    const now = new Date();
-    document.querySelector('#entry_date').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-  }
-  setDate();
-  form.addEventListener('submit', async event => {
-    event.preventDefault();
-    button.disabled = true;
-    status.className = '';
-    status.textContent = 'Saving…';
-    try {
-      const response = await fetch('/entries', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(Object.fromEntries(new FormData(form)))});
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message);
-      form.reset();
-      setDate();
-      status.textContent = result.message + ' You can add another entry.';
-    } catch (error) {
-      status.className = 'error';
-      status.textContent = error instanceof TypeError ? 'Unable to confirm the save. Check that python app.py is running and check the CSV before retrying. Your answers are still here.' : error.message;
-    } finally { button.disabled = false; }
-  });
-</script>
+<script src="/voice.js"></script>
 </body>
 </html>
