@@ -31,6 +31,8 @@ let index = 0;
 let guided = false;
 let phase = 'idle';
 let recognition = null;
+let microphoneReady = false;
+let questionSpeaking = false;
 let generation = 0;
 let silenceTimer;
 let restartTimer;
@@ -59,7 +61,7 @@ function controls() {
   const busy = phase !== 'idle';
   startButton.disabled = !supported || busy;
   stopButton.disabled = !busy || saving;
-  doneButton.disabled = phase !== 'answer' || !recognition;
+  doneButton.disabled = phase !== 'answer' || !microphoneReady || questionSpeaking;
   keepButton.hidden = redoButton.hidden = !['review', 'final'].includes(phase);
   keepButton.textContent = phase === 'final' ? 'Save entry to CSV' : 'Keep answer';
   redoButton.textContent = phase === 'final' ? 'Review questions again' : 'Redo answer';
@@ -76,29 +78,49 @@ function cancelAudio() {
   clearTimeout(restartTimer);
   const previous = recognition;
   recognition = null;
+  microphoneReady = false;
+  questionSpeaking = false;
   if (previous) previous.abort();
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   utterance = null;
   preview.textContent = '';
 }
-function narrate(text, next) {
+function narrate(text, next, warmMicrophone = false) {
   cancelAudio();
   voiceStatus.textContent = text;
   controls();
   if (!supported) return;
   const token = generation;
+  if (warmMicrophone) {
+    questionSpeaking = true;
+    listen('answer', true);
+  }
   // Short chunks avoid long read-backs being cut off by some speech engines.
   const chunks = text.match(/.{1,180}(?:\s|$)|.{1,180}/g) || [text];
   function speakNext() {
     if (token !== generation) return;
-    if (!chunks.length) { utterance = null; if (next) next(); return; }
+    if (!chunks.length) {
+      utterance = null;
+      if (warmMicrophone) {
+        questionSpeaking = false;
+        if (recognition) voiceStatus.textContent = microphoneReady
+          ? 'Listening. You can answer now.' : 'Connecting microphone...';
+        controls();
+      }
+      if (next) next();
+      return;
+    }
     utterance = new SpeechSynthesisUtterance(chunks.shift());
     utterance.lang = 'en-US';
     utterance.rate = 1.1;
     utterance.onend = speakNext;
     utterance.onerror = () => {
       if (token !== generation) return;
-      voiceStatus.textContent = 'Could not read aloud. Use the buttons below, or select Retry voice.';
+      questionSpeaking = false;
+      utterance = null;
+      voiceStatus.textContent = microphoneReady
+        ? 'Could not read aloud. Read the question on screen and answer now.'
+        : 'Could not read aloud. Use the buttons below, or select Retry voice.';
       controls();
     };
     window.speechSynthesis.speak(utterance);
@@ -111,21 +133,34 @@ function listen(mode, preserveAudio = false) {
   const token = generation;
   const session = new Recognition();
   recognition = session;
+  microphoneReady = false;
   session.lang = 'en-US';
   session.continuous = true;
   session.interimResults = true;
   let transcript = '';
   let error = '';
   const finalResults = new Map();
+  const ignoredResults = new Set();
+  session.onstart = () => {
+    if (token !== generation || recognition !== session) return;
+    microphoneReady = true;
+    if (mode === 'answer') voiceStatus.textContent = questionSpeaking
+      ? 'Microphone ready. Listen to the question, then answer.'
+      : 'Listening. You can answer now.';
+    controls();
+  };
   controls();
   voiceStatus.textContent = mode === 'answer'
-    ? 'Listening. Pause briefly when finished, or select Done answering.'
+    ? (questionSpeaking ? 'Getting the microphone ready while asking...' : 'Connecting microphone...')
     : (phase === 'final' ? 'Listening: say “save entry” or “redo”.' : 'Listening — you can interrupt. Say yes, correct, or yup to keep it; no or redo to try again.');
   session.onresult = event => {
     if (token !== generation || recognition !== session) return;
     clearTimeout(silenceTimer);
     let interim = '';
     for (let i = event.resultIndex; i < event.results.length; i++) {
+      // Warm the speech service during narration without recording the bot.
+      if (mode === 'answer' && questionSpeaking) ignoredResults.add(i);
+      if (ignoredResults.has(i)) continue;
       if (event.results[i].isFinal) {
         const text = event.results[i][0].transcript.trim();
         if (mode === 'decision') {
@@ -146,7 +181,7 @@ function listen(mode, preserveAudio = false) {
   };
   session.onerror = event => {
     if (token !== generation || recognition !== session) return;
-    if (mode === 'decision' && event.error === 'no-speech') return;
+    if ((mode === 'decision' || questionSpeaking) && event.error === 'no-speech') return;
     const messages = {
       'not-allowed': 'Microphone permission was denied. Allow access in browser settings and retry.',
       'service-not-allowed': 'The speech service is blocked. Try a supported browser or use the buttons.',
@@ -160,12 +195,13 @@ function listen(mode, preserveAudio = false) {
     if (token !== generation || recognition !== session) return;
     clearTimeout(silenceTimer);
     recognition = null;
+    microphoneReady = false;
     if (mode === 'answer') preview.textContent = '';
     controls();
     if (error) { voiceStatus.textContent = error; return; }
-    if (mode === 'decision') {
+    if (mode === 'decision' || (mode === 'answer' && questionSpeaking)) {
       restartTimer = setTimeout(() => {
-        if (token === generation && ['review', 'final'].includes(phase)) listen('decision', true);
+        if (token === generation && ['answer', 'review', 'final'].includes(phase)) listen(mode, true);
       }, 250);
       return;
     }
@@ -183,7 +219,7 @@ function askQuestion() {
   const field = fields[index];
   phase = 'answer';
   field.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  narrate(questions[field.id] || label(field), () => listen('answer'));
+  narrate(questions[field.id] || label(field), null, true);
 }
 function reviewAnswer(text) {
   const field = fields[index];
@@ -191,7 +227,7 @@ function reviewAnswer(text) {
     const word = normalize(text);
     const number = numbers.includes(word) ? numbers.indexOf(word) : (/^(10|[0-9])$/.test(word) ? Number(word) : -1);
     if (number < 0) {
-      narrate('I could not understand that rating. Please say one whole number from zero to ten.', () => listen('answer'));
+      narrate('I could not understand that rating. Please say one whole number from zero to ten.', null, true);
       return;
     }
     text = String(number);

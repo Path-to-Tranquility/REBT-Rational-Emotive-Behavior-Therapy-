@@ -23,7 +23,9 @@ error. For distress ratings, say a number from zero to ten; say **skip** for the
 optional practice plan. Today's date is filled automatically; edit it before starting.
 You can interrupt the answer confirmation with yes, correct, or yup to keep it,
 or no, na, not at all, or redo to answer again. Unclear replies keep listening.
-Initial questions and the final CSV review finish speaking before listening.
+The microphone connects while each question is spoken and stays open for your
+answer. Speech detected during the question is ignored. The final CSV review
+finishes speaking before listening for permission to save.
 Headphones help prevent speaker audio from reaching the microphone; simultaneous
 speech and listening depend on browser and device support.
 

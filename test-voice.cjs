@@ -39,7 +39,7 @@ function setup(supported = true) {
   let saves = 0;
   class Recognition {
     constructor() { latest = this; }
-    start() {}
+    start() { if (this.onstart) this.onstart(); }
     stop() { this.onend(); }
     abort() { this.onend(); }
   }
@@ -91,7 +91,7 @@ test('narrates, confirms, redoes, and requires final permission before CSV save'
   const app = setup();
   app.fields[0].value = 'Original';
   app.run('guided = true; askQuestion()');
-  assert.equal(app.session(), undefined, 'microphone waits for narration');
+  assert.ok(app.session(), 'microphone warms up during narration');
   app.flush(); app.say('First draft');
   assert.equal(app.fields[0].value, 'First draft');
   assert.equal(app.run('phase'), 'review');
@@ -196,4 +196,23 @@ test('microphone errors do not advance and unsupported browsers retain button co
   fallback.run('finalReview()');
   assert.equal(fallback.elements['keep-answer'].hidden, false);
   assert.equal(fallback.saves(), 0);
+});
+
+
+test('microphone is ready before the question ends and stays open for the answer', () => {
+  const app = setup();
+  app.run('askQuestion()');
+  const session = app.session();
+  assert.ok(session);
+  assert.equal(app.elements['done-voice'].disabled, true);
+  const echo = [{ transcript: 'What happened?' }]; echo.isFinal = false;
+  session.onresult({resultIndex: 0, results: [echo]});
+  app.flush();
+  assert.equal(app.session(), session, 'no microphone restart at end of question');
+  assert.equal(app.elements['done-voice'].disabled, false);
+  echo.isFinal = true;
+  const answer = [{ transcript: 'My parcel was late' }]; answer.isFinal = true;
+  session.onresult({resultIndex: 0, results: [echo, answer]});
+  session.stop();
+  assert.equal(app.fields[0].value, 'My parcel was late');
 });
